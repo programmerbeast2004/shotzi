@@ -20,9 +20,17 @@ export default function HomePage() {
 
       const [{ data: userData }, { data: postsData }] = await Promise.all([
         supabase.auth.getUser(),
+
+        // ✅ ✅ ✅ FIX: JOIN WITH PROFILES (LIVE USERNAMES)
         supabase
           .from("posts")
-          .select("*") // ✅ FIXED: no JOIN (RLS safe)
+          .select(`
+            *,
+            profiles (
+              username,
+              avatar_url
+            )
+          `)
           .order("created_at", { ascending: false }),
       ]);
 
@@ -31,15 +39,17 @@ export default function HomePage() {
       const u = userData?.user ?? null;
       setUser(u);
 
-      const posts = (postsData || []).map((p) => ({
+      // ✅ ✅ ✅ FIX: ALWAYS READ USERNAME FROM PROFILES
+      const formattedPosts = (postsData || []).map((p) => ({
         ...p,
         profile_username:
-          p?.user_email?.split("@")[0] || "user",
+          p.profiles?.username || p.user_id?.slice(0, 6),
+        profile_avatar: p.profiles?.avatar_url || null,
       }));
 
-      setPosts(posts);
+      setPosts(formattedPosts);
 
-      const postIds = posts.map((p) => p.id);
+      const postIds = formattedPosts.map((p) => p.id);
       if (!postIds.length) {
         setLikeCountMap({});
         setCommentCountMap({});
@@ -86,18 +96,28 @@ export default function HomePage() {
 
     load();
 
+    // ✅ REALTIME FEED UPDATES
     const channel = supabase
       .channel("realtime:posts-feed")
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "posts" },
-        (payload) => {
+        async (payload) => {
           const newPost = payload.new;
+
+          // ✅ fetch live username for new post
+          const { data: prof } = await supabase
+            .from("profiles")
+            .select("username, avatar_url")
+            .eq("id", newPost.user_id)
+            .single();
+
           setPosts((current) => [
             {
               ...newPost,
               profile_username:
-                newPost.user_email?.split("@")[0] || "user",
+                prof?.username || newPost.user_id?.slice(0, 6),
+              profile_avatar: prof?.avatar_url || null,
             },
             ...current,
           ]);
