@@ -1,0 +1,180 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  @apply min-h-screen font-sans bg-shotzi-ink text-shotzi-cream;
+  background-image:
+    radial-gradient(circle at top left, rgba(172, 156, 141, 0.35), transparent 55%),
+    radial-gradient(circle at bottom right, rgba(209, 199, 189, 0.35), transparent 55%);
+}
+
+/* =======================
+   REUSABLE UI SHELLS
+======================= */
+
+.card {
+  @apply rounded-3xl border border-shotzi-sand/35 bg-shotzi-ink/70 backdrop-blur-lg;
+}
+
+.badge {
+  @apply inline-flex items-center rounded-full border border-shotzi-sand/40 bg-shotzi-ink/70 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-shotzi-silver;
+}
+
+/* =======================
+   SOFT SCROLLBARS
+======================= */
+
+.soft-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(217, 217, 217, 0.6) transparent;
+}
+
+.soft-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.soft-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.soft-scroll::-webkit-scrollbar-thumb {
+  background-color: rgba(217, 217, 217, 0.5);
+  border-radius: 999px;
+}
+
+/* =======================
+   DECOR ELEMENTS
+======================= */
+
+.decor-spot {
+  position: absolute;
+  pointer-events: none;
+  opacity: 0.28;
+  mix-blend-mode: soft-light;
+}
+
+/* =======================
+   RESPONSIVE DESIGN
+======================= */
+
+/* ✅ Small devices (phones) */
+@media (max-width: 640px) {
+  body {
+    font-size: 14px;
+  }
+
+  .card {
+    @apply rounded-2xl;
+  }
+
+  button {
+    @apply transition-all duration-200 active:scale-95;
+  }
+
+  button,
+  [role="button"],
+  input[type="button"],
+  input[type="submit"] {
+    @apply min-h-[44px] min-w-[44px];
+  }
+
+  h1 { @apply text-lg; }
+  h2 { @apply text-base; }
+  p  { @apply text-xs; }
+}
+
+/* ✅ Medium devices (tablets) */
+@media (min-width: 641px) and (max-width: 1024px) {
+  button {
+    @apply transition-all duration-200;
+  }
+
+  .card {
+    @apply rounded-3xl;
+  }
+
+  h1 { @apply text-xl; }
+  h2 { @apply text-lg; }
+}
+
+/* ✅ Large devices (desktops) */
+@media (min-width: 1025px) {
+  button {
+    @apply transition-all duration-300 hover:scale-105;
+  }
+
+  .card {
+    @apply rounded-3xl hover:shadow-lg;
+  }
+
+  h1 { @apply text-2xl; }
+  h2 { @apply text-xl; }
+}
+
+/* ✅ Landscape Phones */
+@media (orientation: landscape) and (max-height: 600px) {
+  h1, h2 {
+    @apply text-sm;
+  }
+
+  button {
+    @apply px-2 py-1 text-xs;
+  }
+}
+
+/* ✅ High DPI Screens (FIXED — NO TAILWIND @apply HERE) */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  img {
+    image-rendering: auto;
+  }
+}
+
+/* =======================
+   ACCESSIBILITY
+======================= */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    color-scheme: dark;
+  }
+}
+/* ✅ REMOVE GRAY BORDERS & EXTRA SCROLL */
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+/* ✅ REMOVE FAKE MOBILE SCROLL BARS */
+::-webkit-scrollbar {
+  width: 0px;
+  height: 0px;
+}
+
+/* ✅ PREVENT LAYOUT SHIFT FROM 100vh */
+#__next {
+  overflow-x: hidden;
+}
