@@ -20,17 +20,9 @@ export default function HomePage() {
 
       const [{ data: userData }, { data: postsData }] = await Promise.all([
         supabase.auth.getUser(),
-
-        // ✅ ✅ ✅ FIX: JOIN WITH PROFILES (LIVE USERNAMES)
         supabase
           .from("posts")
-          .select(`
-            *,
-            profiles (
-              username,
-              avatar_url
-            )
-          `)
+          .select("*")
           .order("created_at", { ascending: false }),
       ]);
 
@@ -39,17 +31,27 @@ export default function HomePage() {
       const u = userData?.user ?? null;
       setUser(u);
 
-      // ✅ ✅ ✅ FIX: ALWAYS READ USERNAME FROM PROFILES
-      const formattedPosts = (postsData || []).map((p) => ({
+      // ✅ Fetch usernames safely (RLS-safe)
+      const userIds = (postsData || []).map((p) => p.user_id);
+
+      const { data: profiles } = userIds.length
+        ? await supabase
+            .from("profiles")
+            .select("id, username")
+            .in("id", userIds)
+        : { data: [] };
+
+      const posts = (postsData || []).map((p) => ({
         ...p,
         profile_username:
-          p.profiles?.username || p.user_id?.slice(0, 6),
-        profile_avatar: p.profiles?.avatar_url || null,
+          profiles?.find((x) => x.id === p.user_id)?.username ||
+          p.user_email?.split("@")[0] ||
+          "user",
       }));
 
-      setPosts(formattedPosts);
+      setPosts(posts);
 
-      const postIds = formattedPosts.map((p) => p.id);
+      const postIds = posts.map((p) => p.id);
       if (!postIds.length) {
         setLikeCountMap({});
         setCommentCountMap({});
@@ -58,19 +60,9 @@ export default function HomePage() {
         return;
       }
 
-      const likePromise = supabase
-        .from("likes")
-        .select("post_id, user_id")
-        .in("post_id", postIds);
-
-      const commentPromise = supabase
-        .from("comments")
-        .select("post_id")
-        .in("post_id", postIds);
-
       const [{ data: likeRows }, { data: commentRows }] = await Promise.all([
-        likePromise,
-        commentPromise,
+        supabase.from("likes").select("post_id, user_id").in("post_id", postIds),
+        supabase.from("comments").select("post_id").in("post_id", postIds),
       ]);
 
       const likeCounts = {};
@@ -96,28 +88,22 @@ export default function HomePage() {
 
     load();
 
-    // ✅ REALTIME FEED UPDATES
+    // ✅ REALTIME INSERT FIXED (NO CRASH)
     const channel = supabase
       .channel("realtime:posts-feed")
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "posts" },
-        async (payload) => {
+        (payload) => {
           const newPost = payload.new;
-
-          // ✅ fetch live username for new post
-          const { data: prof } = await supabase
-            .from("profiles")
-            .select("username, avatar_url")
-            .eq("id", newPost.user_id)
-            .single();
 
           setPosts((current) => [
             {
               ...newPost,
               profile_username:
-                prof?.username || newPost.user_id?.slice(0, 6),
-              profile_avatar: prof?.avatar_url || null,
+                newPost.profile_username ||
+                newPost.user_email?.split("@")[0] ||
+                "user",
             },
             ...current,
           ]);
@@ -138,10 +124,12 @@ export default function HomePage() {
           A soft place for loud feelings.
         </h1>
         <p className="text-xs sm:text-sm text-shotzi-silver/90 mt-2 max-w-2xl">
-          Dump sunsets, late-night streets, campus chaos, tiny details and random beauty.
+          Dump sunsets, late-night streets, campus chaos, tiny details and random
+          beauty.
         </p>
         <p className="text-[10px] sm:text-[11px] text-shotzi-silver/70 mt-3">
-          Tip: treat it like a public camera roll of things that make you feel something.
+          Tip: treat it like a public camera roll of things that make you feel
+          something.
         </p>
       </section>
 

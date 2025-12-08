@@ -82,7 +82,7 @@ export default function Navbar() {
         <div className="hidden sm:flex items-center gap-1 sm:gap-2 flex-wrap justify-end">
 
           <Link href="/upload" className="nav-btn">＋ Dump</Link>
-          <Link href="/reels" className="nav-btn">▶ Reels</Link>
+          <Link href="/reels" className="nav-btn">▶ Infinite</Link>
           <Link href="/profile" className="nav-btn">◎ Profile</Link>
 
           {!loading && !user && (
