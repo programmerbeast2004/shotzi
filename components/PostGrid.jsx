@@ -8,6 +8,7 @@ export default function PostGrid({
   likedPostIds,
   likeCountMap,
   commentCountMap,
+  onDeletePost,
 }) {
   if (!posts?.length) {
     return (
@@ -35,6 +36,7 @@ export default function PostGrid({
           initialLiked={likedPostIds?.includes(post.id)}
           initialLikeCount={likeCountMap?.[post.id] || 0}
           initialCommentCount={commentCountMap?.[post.id] || 0}
+          onDeletePost={onDeletePost}
         />
       ))}
     </div>

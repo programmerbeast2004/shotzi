@@ -1,6 +1,6 @@
 "use client";
 
-export default function ProfileHeader({ profile, isOwn, onEditClick }) {
+export default function ProfileHeader({ profile, isOwn, onEditClick, onDeleteClick, isFollowing, followerCount, onFollow }) {
   const bannerUrl = profile?.header_image_url;
 
   return (
@@ -45,15 +45,36 @@ export default function ProfileHeader({ profile, isOwn, onEditClick }) {
             @{profile?.username || profile?.id?.slice(0, 8)}
           </p>
         </div>
-        {isOwn && (
+        {isOwn ? (
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={onEditClick}
+              className="inline-flex items-center gap-1 sm:gap-2 rounded-full border border-shotzi-sand/60 bg-shotzi-ink px-2 sm:px-3 py-1.5 sm:py-2 text-[9px] sm:text-[11px] text-shotzi-cream hover:bg-shotzi-mocha/20 transition-all active:scale-95 min-h-[36px] sm:min-h-[40px] flex-shrink-0"
+              title="Edit profile"
+            >
+              <span className="text-sm sm:text-base">🛠️</span>
+              <span className="hidden xs:inline">Edit</span>
+            </button>
+            <button
+              type="button"
+              onClick={onDeleteClick}
+              className="inline-flex items-center gap-1 sm:gap-2 rounded-full border border-red-500/60 bg-red-900/20 px-2 sm:px-3 py-1.5 sm:py-2 text-[9px] sm:text-[11px] text-red-300 hover:bg-red-900/40 transition-all active:scale-95 min-h-[36px] sm:min-h-[40px] flex-shrink-0"
+              title="Delete profile"
+            >
+              <span className="text-sm sm:text-base">🗑️</span>
+              <span className="hidden xs:inline">Delete</span>
+            </button>
+          </div>
+        ) : (
           <button
             type="button"
-            onClick={onEditClick}
+            onClick={onFollow}
             className="inline-flex items-center gap-1 sm:gap-2 rounded-full border border-shotzi-sand/60 bg-shotzi-ink px-2 sm:px-3 py-1.5 sm:py-2 text-[9px] sm:text-[11px] text-shotzi-cream hover:bg-shotzi-mocha/20 transition-all active:scale-95 min-h-[36px] sm:min-h-[40px] flex-shrink-0"
-            title="Edit profile"
+            title={isFollowing ? "Unfollow" : "Follow"}
           >
-            <span className="text-sm sm:text-base">🛠️</span>
-            <span className="hidden xs:inline">Edit</span>
+            <span className="text-sm sm:text-base">{isFollowing ? "✓" : "+"}</span>
+            <span className="hidden xs:inline">{isFollowing ? "Following" : "Follow"}</span>
           </button>
         )}
       </div>

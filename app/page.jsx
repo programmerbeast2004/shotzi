@@ -11,6 +11,16 @@ export default function HomePage() {
   const [likedPostIds, setLikedPostIds] = useState([]);
   const [likeCountMap, setLikeCountMap] = useState({});
   const [commentCountMap, setCommentCountMap] = useState({});
+  const onDeletePost = async (postId) => {
+    if (!confirm("Are you sure you want to delete this post?")) return;
+    try {
+      await supabase.from("posts").delete().eq("id", postId);
+      setPosts((prev) => prev.filter((p) => p.id !== postId));
+    } catch (error) {
+      console.error(error);
+      alert("Failed to delete post.");
+    }
+  };
 
   useEffect(() => {
     let ignore = false;
@@ -144,6 +154,7 @@ export default function HomePage() {
           likedPostIds={likedPostIds}
           likeCountMap={likeCountMap}
           commentCountMap={commentCountMap}
+          onDeletePost={onDeletePost}
         />
       )}
     </div>

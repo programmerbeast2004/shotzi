@@ -129,6 +129,39 @@ export default function ProfilePage() {
   };
 
   // ✅ ✅ ✅ FINAL SAFE PROFILE SAVE (USERNAME UNIQUE CHECK)
+  const onDeletePost = async (postId) => {
+    if (!confirm("Are you sure you want to delete this post?")) return;
+    try {
+      await supabase.from("posts").delete().eq("id", postId);
+      // Remove from local state
+      setPosts((prev) => prev.filter((p) => p.id !== postId));
+      // Update counts if needed, but for simplicity, reload
+      window.location.reload();
+    } catch (error) {
+      console.error(error);
+      alert("Failed to delete post.");
+    }
+  };
+
+  const onDeleteProfile = async () => {
+    if (!user) return;
+    if (!confirm("Are you sure you want to delete your profile? This action cannot be undone.")) return;
+
+    try {
+      // Delete posts first
+      await supabase.from("posts").delete().eq("user_id", user.id);
+      // Delete profile
+      await supabase.from("profiles").delete().eq("id", user.id);
+      // Sign out
+      await supabase.auth.signOut();
+      window.location.href = "/";
+    } catch (error) {
+      console.error(error);
+      alert("Failed to delete profile.");
+    }
+  };
+
+  // ✅ ✅ ✅ FINAL SAFE PROFILE SAVE (USERNAME UNIQUE CHECK)
   const onSaveProfile = async (e) => {
     e.preventDefault();
     if (!user) return;
@@ -198,7 +231,7 @@ export default function ProfilePage() {
 
   return (
     <div className="pt-4">
-      <ProfileHeader profile={profile} isOwn onEditClick={() => setEditMode((v) => !v)} />
+      <ProfileHeader profile={profile} isOwn onEditClick={() => setEditMode((v) => !v)} onDeleteClick={onDeleteProfile} />
 
       {editMode && (
         <form
@@ -245,6 +278,7 @@ export default function ProfilePage() {
         likedPostIds={likedPostIds}
         likeCountMap={likeCountMap}
         commentCountMap={commentCountMap}
+        onDeletePost={onDeletePost}
       />
     </div>
   );

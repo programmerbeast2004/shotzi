@@ -16,7 +16,16 @@ export default function PublicProfilePage() {
 
   const [likeCountMap, setLikeCountMap] = useState({});
   const [commentCountMap, setCommentCountMap] = useState({});
-  const [likedPostIds, setLikedPostIds] = useState([]);
+  const onDeletePost = async (postId) => {
+    if (!confirm("Are you sure you want to delete this post?")) return;
+    try {
+      await supabase.from("posts").delete().eq("id", postId);
+      setPosts((prev) => prev.filter((p) => p.id !== postId));
+    } catch (error) {
+      console.error(error);
+      alert("Failed to delete post.");
+    }
+  };
 
   // ✅ FOLLOW SYSTEM STATES
   const [isFollowing, setIsFollowing] = useState(false);
@@ -202,6 +211,16 @@ export default function PublicProfilePage() {
         isFollowing={isFollowing}
         followerCount={followerCount}
         onFollow={toggleFollow}
+        onEditClick={isOwn ? () => window.location.href = "/profile" : undefined}
+        onDeleteClick={isOwn ? () => {
+          if (confirm("Are you sure you want to delete your profile?")) {
+            // Similar to profile page
+            supabase.from("posts").delete().eq("user_id", currentUser.id);
+            supabase.from("profiles").delete().eq("id", currentUser.id);
+            supabase.auth.signOut();
+            window.location.href = "/";
+          }
+        } : undefined}
       />
 
       <section className="card px-4 py-3 sm:px-6 sm:py-4 mb-3 flex items-center justify-between">
@@ -220,6 +239,7 @@ export default function PublicProfilePage() {
         likedPostIds={likedPostIds}
         likeCountMap={likeCountMap}
         commentCountMap={commentCountMap}
+        onDeletePost={onDeletePost}
       />
     </div>
   );

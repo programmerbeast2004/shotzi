@@ -224,8 +224,18 @@ export default function PostDetailPage() {
   };
 
   // =========================
-  // COMMENT / REPLY SUBMIT
+  // COMMENT DELETE
   // =========================
+  const handleDeleteComment = async (commentId) => {
+    if (!confirm("Are you sure you want to delete this comment?")) return;
+    try {
+      await supabase.from("comments").delete().eq("id", commentId);
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+    } catch (error) {
+      console.error(error);
+      alert("Failed to delete comment.");
+    }
+  };
   const handleCommentSubmit = async (e) => {
     e.preventDefault();
     if (!user) {
@@ -359,6 +369,15 @@ export default function PostDetailPage() {
                   >
                     Reply
                   </button>
+                  {user && (user.id === c.user_id || user.id === post.user_id) && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteComment(c.id)}
+                      className="text-[10px] text-red-400 hover:text-red-300 underline-offset-2 hover:underline"
+                    >
+                      Delete
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -438,22 +457,40 @@ export default function PostDetailPage() {
               )}
             </div>
 
-            <button
-              type="button"
-              onClick={handleLike}
-              disabled={busyLike}
-              className={clsx(
-                "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] transition shadow-sm",
-                liked
-                  ? "border-shotzi-wine bg-shotzi-wine text-shotzi-cream"
-                  : "border-shotzi-sand/50 bg-shotzi-ink text-shotzi-cream hover:bg-shotzi-wine/30"
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleLike}
+                disabled={busyLike}
+                className={clsx(
+                  "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] transition shadow-sm",
+                  liked
+                    ? "border-shotzi-wine bg-shotzi-wine text-shotzi-cream"
+                    : "border-shotzi-sand/50 bg-shotzi-ink text-shotzi-cream hover:bg-shotzi-wine/30"
+                )}
+              >
+                <span>{liked ? "♥" : "♡"}</span>
+                <span>
+                  {likes} like{likes === 1 ? "" : "s"}
+                </span>
+              </button>
+              {user && user.id === post.user_id && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirm("Are you sure you want to delete this post?")) {
+                      supabase.from("posts").delete().eq("id", post.id).then(() => {
+                        window.location.href = "/";
+                      });
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 rounded-full border border-red-500/50 bg-red-900/20 px-3 py-1.5 text-[11px] text-red-300 hover:bg-red-900/40 transition shadow-sm"
+                >
+                  <span>🗑️</span>
+                  <span>Delete</span>
+                </button>
               )}
-            >
-              <span>{liked ? "♥" : "♡"}</span>
-              <span>
-                {likes} like{likes === 1 ? "" : "s"}
-              </span>
-            </button>
+            </div>
           </div>
 
           {post.caption && (

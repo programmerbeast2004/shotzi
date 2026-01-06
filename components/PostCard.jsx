@@ -12,6 +12,7 @@ export default function PostCard({
   initialLiked,
   initialLikeCount,
   initialCommentCount,
+  onDeletePost,
 }) {
   const [liked, setLiked] = useState(initialLiked);
   const [likeCount, setLikeCount] = useState(initialLikeCount || 0);
@@ -98,6 +99,16 @@ export default function PostCard({
                 <span>💬</span>
                 <span>{initialCommentCount || 0}</span>
               </Link>
+              {currentUser && currentUser.id === post.user_id && (
+                <button
+                  type="button"
+                  onClick={() => onDeletePost && onDeletePost(post.id)}
+                  className="inline-flex items-center gap-1 rounded-full border border-red-500/50 bg-red-900/20 px-2 sm:px-2.5 py-1 text-[10px] sm:text-[11px] text-red-300 hover:bg-red-900/40 transition-all active:scale-95 min-h-[32px]"
+                  title="Delete post"
+                >
+                  <span>🗑️</span>
+                </button>
+              )}
             </div>
           </div>
           <div className="flex flex-col items-start gap-0.5">
