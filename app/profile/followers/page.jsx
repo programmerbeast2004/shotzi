@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import FollowerCard from "../../../components/FollowerCard";
-import { supabase } from "../../../lib/supabaseClient";
+// defer importing supabase so it isn't created at module-eval time
 
 export default function FollowersPage() {
   const [user, setUser] = useState(null);
@@ -17,6 +17,7 @@ export default function FollowersPage() {
 
   useEffect(() => {
     async function loadFollowers() {
+      const { supabase } = await import("../../../lib/supabaseClient");
       const { data: userData } = await supabase.auth.getUser();
       const u = userData?.user ?? null;
 
@@ -110,22 +111,30 @@ export default function FollowersPage() {
     const targetId = viewedUserId || user?.id;
     if (!targetId) return;
 
-    const ch = supabase
-      .channel(`follows_list_followers_${targetId}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "follows", filter: `following_id=eq.${targetId}` },
-        () => setReloadFlag((v) => v + 1)
-      )
-      .on(
-        "postgres_changes",
-        { event: "DELETE", schema: "public", table: "follows", filter: `following_id=eq.${targetId}` },
-        () => setReloadFlag((v) => v + 1)
-      )
-      .subscribe();
+    let ch = null;
+    let sup = null;
+    async function subscribe() {
+      const mod = await import("../../../lib/supabaseClient");
+      sup = mod.supabase;
+      ch = sup
+        .channel(`follows_list_followers_${targetId}`)
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "follows", filter: `following_id=eq.${targetId}` },
+          () => setReloadFlag((v) => v + 1)
+        )
+        .on(
+          "postgres_changes",
+          { event: "DELETE", schema: "public", table: "follows", filter: `following_id=eq.${targetId}` },
+          () => setReloadFlag((v) => v + 1)
+        )
+        .subscribe();
+    }
+
+    subscribe();
 
     return () => {
-      try { supabase.removeChannel(ch); } catch (e) {}
+      try { if (sup && ch) sup.removeChannel(ch); } catch (e) {}
     };
   }, [viewedUserId, user]);
 
@@ -140,6 +149,7 @@ export default function FollowersPage() {
     setUnfollowingIds(prev => new Set([...prev, followerId]));
 
     try {
+      const { supabase } = await import("../../../lib/supabaseClient");
       // Delete the follow relationship
       await supabase
         .from("follows")
