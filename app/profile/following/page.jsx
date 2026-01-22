@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import FollowerCard from "../../../components/FollowerCard";
 // defer importing supabase so it isn't created at module-eval time
@@ -11,8 +11,20 @@ export default function FollowingPage() {
   const [loading, setLoading] = useState(true);
   const [unfollowingIds, setUnfollowingIds] = useState(new Set());
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const viewedUserId = searchParams?.get("user") || null;
+  const [viewedUserId, setViewedUserId] = useState(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const sp = new URLSearchParams(window.location.search || "");
+    setViewedUserId(sp.get("user") || null);
+
+    const onPop = () => {
+      const sp2 = new URLSearchParams(window.location.search || "");
+      setViewedUserId(sp2.get("user") || null);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
   const [reloadFlag, setReloadFlag] = useState(0);
 
   useEffect(() => {
