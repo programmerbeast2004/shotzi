@@ -8,6 +8,7 @@ export default function Navbar() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false); // ✅ mobile menu state
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     let ignore = false;
@@ -33,6 +34,106 @@ export default function Navbar() {
       listener.subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      loadUnreadCount(user.id);
+      const notifSubscription = supabase
+        .channel('notifications')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` }, () => {
+          loadUnreadCount(user.id);
+        })
+        .subscribe();
+
+      // Listen for localStorage broadcasts (immediate UI sync across tabs)
+      const storageHandler = (e) => {
+        if (!e) return;
+        if (e.key === 'shotzi_notification_update') {
+          try {
+            const payload = JSON.parse(e.newValue || '{}');
+            if (!payload.userId || payload.userId !== user.id) return;
+          } catch (err) {
+            // ignore parse errors
+          }
+          loadUnreadCount(user.id);
+        }
+      };
+
+      window.addEventListener('storage', storageHandler);
+
+      // Also listen for same-tab custom events so updates are instant in the same window
+      const localHandler = (e) => {
+        try {
+          const payload = e?.detail || {};
+          if (!payload.userId || payload.userId !== user.id) return;
+        } catch (err) {
+          // ignore
+        }
+        loadUnreadCount(user.id);
+      };
+      window.addEventListener('shotzi_notification_update_local', localHandler);
+
+      return () => {
+        notifSubscription.unsubscribe();
+        window.removeEventListener('storage', storageHandler);
+        window.removeEventListener('shotzi_notification_update_local', localHandler);
+      };
+    } else {
+      setUnreadCount(0);
+    }
+  }, [user]);
+
+  // Heartbeat: update profiles.last_active periodically so others can see online/last-seen
+  useEffect(() => {
+    if (!user) return;
+
+    let mounted = true;
+    const updateLastActive = async () => {
+      try {
+        const { error } = await supabase.from('profiles').update({ last_active: new Date().toISOString() }).eq('id', user.id);
+        if (error) {
+          console.warn('Failed to update last_active:', error.message || error);
+        }
+      } catch (err) {
+        console.warn('Heartbeat update error:', err);
+      }
+    };
+
+    // initial ping
+    updateLastActive();
+
+    const iv = setInterval(updateLastActive, 25 * 1000);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') updateLastActive();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    // try to flush on unload
+    const handleBeforeUnload = () => {
+      try {
+        // best-effort synchronous update (may not complete)
+        navigator.sendBeacon && navigator.sendBeacon('/_empty', '');
+      } catch (err) {}
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      mounted = false;
+      clearInterval(iv);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [user]);
+
+  const loadUnreadCount = async (userId) => {
+    const { data } = await supabase
+      .from("notifications")
+      .select("id", { count: "exact" })
+      .eq("user_id", userId)
+      .eq("read", false);
+    setUnreadCount(data?.length || 0);
+  };
 
   const login = async () => {
     await supabase.auth.signInWithOAuth({
@@ -84,6 +185,10 @@ export default function Navbar() {
           <Link href="/upload" className="nav-btn">＋ Dump</Link>
           <Link href="/reels" className="nav-btn">▶ Infinite</Link>
           <Link href="/profile" className="nav-btn">◎ Profile</Link>
+          {user && <Link href="/chat" className="nav-btn">💬 Messages</Link>}
+          {user && <Link href="/chat/global" className="nav-btn">🌍 Global Chat</Link>}
+          {user && <Link href="/notifications" className={`nav-btn ${unreadCount > 0 ? 'bg-shotzi-wine text-white' : ''}`}>🔔 Notifications {unreadCount > 0 && `(${unreadCount})`}</Link>}
+          {user && user.email === 'prvmehrotra@gmail.com' && <Link href="/admin" className="nav-btn">⚙️ Admin</Link>}
 
           {!loading && !user && (
             <button onClick={login} className="nav-primary-btn">
@@ -122,6 +227,30 @@ export default function Navbar() {
           <Link onClick={() => setOpen(false)} href="/profile" className="block nav-btn">
             ◎ My profile
           </Link>
+
+          {user && (
+            <Link onClick={() => setOpen(false)} href="/chat" className="block nav-btn">
+              💬 Messages
+            </Link>
+          )}
+
+          {user && (
+            <Link onClick={() => setOpen(false)} href="/chat/global" className="block nav-btn">
+              🌍 Global Chat
+            </Link>
+          )}
+
+          {user && (
+            <Link onClick={() => setOpen(false)} href="/notifications" className={`block nav-btn ${unreadCount > 0 ? 'bg-shotzi-wine text-white' : ''}`}>
+              🔔 Notifications {unreadCount > 0 && `(${unreadCount})`}
+            </Link>
+          )}
+
+          {user && user.email === 'prvmehrotra@gmail.com' && (
+            <Link onClick={() => setOpen(false)} href="/admin" className="block nav-btn">
+              ⚙️ Admin
+            </Link>
+          )}
 
           {!loading && !user && (
             <button onClick={login} className="block w-full nav-primary-btn">

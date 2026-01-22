@@ -1,7 +1,8 @@
 "use client";
 
-import "./globals.css";
+import AdminNotifier from "../components/AdminNotifier";
 import Navbar from "../components/Navbar";
+import "./globals.css";
 
 export default function RootLayout({ children }) {
   return (
@@ -25,6 +26,8 @@ export default function RootLayout({ children }) {
           </div>
           <div className="relative z-10 min-h-screen bg-gradient-to-b from-shotzi-ink/95 via-shotzi-ink/98 to-shotzi-ink">
             <Navbar />
+            {/* Admin notifier (popups) */}
+            <AdminNotifier />
             <main className="max-w-6xl mx-auto px-4 pb-16 pt-4">
               {children}
             </main>

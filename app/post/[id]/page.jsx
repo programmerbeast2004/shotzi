@@ -64,6 +64,17 @@ export default function PostDetailPage() {
         .eq("id", postRow.user_id)
         .single();
 
+      // Current user's profile (for comment posting display)
+      let currentUserProfile = null;
+      if (cu) {
+        const { data: cup } = await supabase
+          .from("profiles")
+          .select("id, username, display_name, avatar_url")
+          .eq("id", cu.id)
+          .maybeSingle();
+        currentUserProfile = cup || null;
+      }
+
       // Post likes
       const { data: likeRows } = await supabase
         .from("likes")
@@ -73,9 +84,7 @@ export default function PostDetailPage() {
       // Comments (flat)
       const { data: commentRows } = await supabase
         .from("comments")
-        .select(
-          "id, post_id, user_id, user_email, content, created_at, parent_id"
-        )
+        .select("id, post_id, user_id, user_email, content, created_at, parent_id")
         .eq("post_id", id)
         .order("created_at", { ascending: true });
 
@@ -102,22 +111,37 @@ export default function PostDetailPage() {
         }
       }
 
+      // Fetch profiles for comment authors to display proper names
+      let commentAuthorProfiles = [];
+      const commenterIds = Array.from(new Set((commentRows || []).map((c) => c.user_id).filter(Boolean)));
+      if (commenterIds.length) {
+        const { data: caps } = await supabase
+          .from("profiles")
+          .select("id, username, display_name, avatar_url")
+          .in("id", commenterIds);
+        commentAuthorProfiles = caps || [];
+      }
+
       if (!ignore) {
         setPost(postRow);
         setProfile(prof);
         setLikes(likeRows?.length || 0);
-        setLiked(
-          cu ? likeRows?.some((row) => row.user_id === cu.id) : false
-        );
+        setLiked(cu ? likeRows?.some((row) => row.user_id === cu.id) : false);
 
         setComments(
-          (commentRows || []).map((c) => ({
-            ...c,
-            profile_username:
-              c.user_email?.split("@")[0] || c.user_id.slice(0, 6),
-            likeCount: commentLikeCount[c.id] || 0,
-            likedByUser: likedCommentsByUser.has(c.id),
-          }))
+          (commentRows || []).map((c) => {
+            const author = commentAuthorProfiles.find((p) => p.id === c.user_id);
+            // Prefer username (like Instagram) for comment display, fall back to display_name then email local-part
+            const profile_username = author?.username || author?.display_name || c.user_email?.split("@")[0] || c.user_id.slice(0, 6);
+            const authorUsername = author?.username || author?.id || c.user_id;
+            return {
+              ...c,
+              profile_username,
+              authorUsername,
+              likeCount: commentLikeCount[c.id] || 0,
+              likedByUser: likedCommentsByUser.has(c.id),
+            };
+          })
         );
 
         setLoading(false);
@@ -267,11 +291,24 @@ export default function PostDetailPage() {
 
     const formatted = {
       ...data,
-      profile_username:
-        data.user_email?.split("@")[0] || data.user_id.slice(0, 6),
+      profile_username: data.user_email?.split("@")[0] || data.user_id.slice(0, 6),
       likeCount: 0,
       likedByUser: false,
     };
+
+    // Try to resolve a nicer display name from profiles table
+    try {
+      const { data: authorProf } = await supabase
+        .from("profiles")
+        .select("username, display_name")
+        .eq("id", data.user_id)
+        .maybeSingle();
+      if (authorProf) {
+      // Prefer username for display
+      formatted.profile_username = authorProf.username || authorProf.display_name || formatted.profile_username;
+      formatted.authorUsername = authorProf.username || authorProf.id;
+      }
+    } catch (e) {}
 
     setComments((prev) => [...prev, formatted]);
     setCommentText("");
@@ -337,10 +374,14 @@ export default function PostDetailPage() {
               )}
             >
               <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-shotzi-cream">
+                  <div className="flex items-center gap-2">
+                  <Link
+                    href={`/u/${c.authorUsername || c.user_id}`}
+                    className="font-semibold text-shotzi-cream hover:underline"
+                    title={`View ${c.profile_username}'s profile`}
+                  >
                     @{c.profile_username}
-                  </span>
+                  </Link>
                   {createdAt && (
                     <span className="text-[9px] text-shotzi-silver/80">
                       {createdAt}

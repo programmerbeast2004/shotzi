@@ -25,6 +25,10 @@ export default function ProfilePage() {
   const [commentCountMap, setCommentCountMap] = useState({});
   const [likedPostIds, setLikedPostIds] = useState([]);
 
+  // ✅ FOLLOWER SYSTEM
+  const [followerCount, setFollowerCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+
   // ✅ LOAD USER + PROFILE
   useEffect(() => {
     let ignore = false;
@@ -74,6 +78,18 @@ export default function ProfilePage() {
         .eq("user_id", u.id)
         .order("created_at", { ascending: false });
 
+      // ✅ LOAD FOLLOWER COUNTS
+      const [{ count: followers }, { count: following }] = await Promise.all([
+        supabase
+          .from("follows")
+          .select("*", { count: "exact" })
+          .eq("following_id", u.id),
+        supabase
+          .from("follows")
+          .select("*", { count: "exact" })
+          .eq("follower_id", u.id)
+      ]);
+
       const postIds = (postsData || []).map((p) => p.id);
 
       const [{ data: likeRows }, { data: commentRows }] = await Promise.all([
@@ -114,6 +130,8 @@ export default function ProfilePage() {
         setLikeCountMap(likeCounts);
         setCommentCountMap(commentCounts);
         setLikedPostIds(liked);
+        setFollowerCount(followers || 0);
+        setFollowingCount(following || 0);
         setLoading(false);
       }
     }
@@ -123,6 +141,78 @@ export default function ProfilePage() {
       ignore = true;
     };
   }, []);
+
+  // Listen for follower count updates from other tabs/pages
+  useEffect(() => {
+    function onStorage(e) {
+      if (!e) return;
+      try {
+        if (e.key === "shotzi_follow_update") {
+          const payload = JSON.parse(e.newValue || e.oldValue || "null");
+          if (!payload) return;
+          if (user && payload.profileId === user.id) {
+            setFollowerCount(payload.followerCount || 0);
+          }
+        } else if (e.key === "shotzi_following_update") {
+          const payload = JSON.parse(e.newValue || e.oldValue || "null");
+          if (!payload) return;
+          if (user && payload.userId === user.id) {
+            // refetch following count to stay accurate
+            (async () => {
+              try {
+                const { count } = await supabase
+                  .from("follows")
+                  .select("*", { count: "exact" })
+                  .eq("follower_id", user.id);
+                setFollowingCount(count || 0);
+              } catch (err) {}
+            })();
+          }
+        }
+      } catch (err) {}
+    }
+
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [user]);
+
+  // Realtime subscription to keep follower/following counts in sync across devices
+  useEffect(() => {
+    if (!user) return;
+
+    const followerChannel = supabase
+      .channel(`follows_user_followers_${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "follows", filter: `following_id=eq.${user.id}` },
+        () => setFollowerCount((c) => c + 1)
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "follows", filter: `following_id=eq.${user.id}` },
+        () => setFollowerCount((c) => Math.max(0, c - 1))
+      )
+      .subscribe();
+
+    const followingChannel = supabase
+      .channel(`follows_user_following_${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "follows", filter: `follower_id=eq.${user.id}` },
+        () => setFollowingCount((c) => c + 1)
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "follows", filter: `follower_id=eq.${user.id}` },
+        () => setFollowingCount((c) => Math.max(0, c - 1))
+      )
+      .subscribe();
+
+    return () => {
+      try { supabase.removeChannel(followerChannel); } catch (e) {}
+      try { supabase.removeChannel(followingChannel); } catch (e) {}
+    };
+  }, [user]);
 
   const onFormChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -231,7 +321,15 @@ export default function ProfilePage() {
 
   return (
     <div className="pt-4">
-      <ProfileHeader profile={profile} isOwn onEditClick={() => setEditMode((v) => !v)} onDeleteClick={onDeleteProfile} />
+      <ProfileHeader 
+        profile={profile} 
+        isOwn 
+        followerCount={followerCount}
+        followingCount={followingCount}
+        postsCount={posts.length}
+        onEditClick={() => setEditMode((v) => !v)} 
+        onDeleteClick={onDeleteProfile} 
+      />
 
       {editMode && (
         <form

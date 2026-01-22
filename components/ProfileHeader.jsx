@@ -1,6 +1,10 @@
 "use client";
 
-export default function ProfileHeader({ profile, isOwn, onEditClick, onDeleteClick, isFollowing, followerCount, onFollow }) {
+import { useRouter } from "next/navigation";
+import { formatLastSeen } from "./lastSeen";
+
+export default function ProfileHeader({ profile, isOwn, onEditClick, onDeleteClick, isFollowing, followerCount, followingCount, postsCount, onFollow }) {
+  const router = useRouter();
   const bannerUrl = profile?.header_image_url;
 
   return (
@@ -38,8 +42,22 @@ export default function ProfileHeader({ profile, isOwn, onEditClick, onDeleteCli
           )}
         </div>
         <div className="flex-1 flex flex-col gap-1 min-w-0">
-          <h1 className="font-serif text-base sm:text-xl md:text-2xl tracking-tight text-shotzi-cream flex items-center gap-1 truncate">
-            {profile?.display_name || profile?.username || "Shotzi user"}
+          <h1 className="font-serif text-base sm:text-xl md:text-2xl tracking-tight text-shotzi-cream flex items-center gap-2 truncate">
+            <span className="truncate">{profile?.display_name || profile?.username || "Shotzi user"}</span>
+            {profile?.last_active ? (
+              (() => {
+                const s = formatLastSeen(profile.last_active);
+                if (!s) return null;
+                if (s.type === 'online') {
+                  return (
+                    <span className="text-xs text-green-400 bg-green-400/10 px-2 py-0.5 rounded-full">● online</span>
+                  );
+                }
+                return (
+                  <span className="text-xs text-shotzi-silver/80 px-2 py-0.5 rounded-full">{s.text}</span>
+                );
+              })()
+            ) : null}
           </h1>
           <p className="text-[10px] sm:text-[11px] text-shotzi-silver/80 truncate">
             @{profile?.username || profile?.id?.slice(0, 8)}
@@ -84,6 +102,28 @@ export default function ProfileHeader({ profile, isOwn, onEditClick, onDeleteCli
           {profile.bio}
         </div>
       )}
+
+      {/* Follower Stats */}
+      <div className="px-3 sm:px-6 pb-4 flex gap-6 items-center">
+        <div
+          className="text-center cursor-pointer hover:bg-shotzi-ink/50 rounded-lg px-3 py-2 transition-colors"
+          onClick={() => router.push(`/profile/followers?user=${profile.id}`)}
+        >
+          <div className="text-lg sm:text-xl font-bold text-shotzi-cream">{followerCount || 0}</div>
+          <div className="text-xs text-shotzi-silver/80">Followers</div>
+        </div>
+        <div
+          className="text-center cursor-pointer hover:bg-shotzi-ink/50 rounded-lg px-3 py-2 transition-colors"
+          onClick={() => router.push(`/profile/following?user=${profile.id}`)}
+        >
+          <div className="text-lg sm:text-xl font-bold text-shotzi-cream">{followingCount || 0}</div>
+          <div className="text-xs text-shotzi-silver/80">Following</div>
+        </div>
+        <div className="text-center">
+          <div className="text-lg sm:text-xl font-bold text-shotzi-cream">{postsCount || 0}</div>
+          <div className="text-xs text-shotzi-silver/80">Posts</div>
+        </div>
+      </div>
     </section>
   );
 }

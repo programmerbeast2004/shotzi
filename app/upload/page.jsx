@@ -69,11 +69,12 @@ export default function UploadPage() {
         data: { publicUrl },
       } = supabase.storage.from("shots").getPublicUrl(storageData.path);
 
-      const { error: insertErr } = await supabase.from("posts").insert({
+      const { error: insertErr } = await supabase.from("pending_posts").insert({
         image_url: publicUrl,
         caption: caption || null,
         user_id: user.id,
         user_email: user.email,
+        status: "pending",
       });
 
       if (insertErr) {
@@ -85,6 +86,7 @@ export default function UploadPage() {
 
       setCaption("");
       setFile(null);
+      alert("Your post has been submitted for review. You'll be notified once it's approved!");
       router.push("/");
     } finally {
       setUploading(false);
